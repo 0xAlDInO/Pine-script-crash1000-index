@@ -4,23 +4,23 @@ strategy("Crash 1000 M5 High-Probability LONG Strategy", overlay=true, initial_c
 // ==========================================
 // INPUT PARAMETERS & USER SETTINGS
 // ==========================================
-i_emaFast          = input.int(50, title="EMA Rapide (Fast Trend)", group="Indicateurs de Tendance")
-i_emaSlow          = input.int(200, title="EMA Lente (Slow Trend)", group="Indicateurs de Tendance")
+i_emaFast          = input.int(20, title="EMA Rapide (Fast Trend)", group="Indicateurs de Tendance")
+i_emaSlow          = input.int(50, title="EMA Lente (Slow Trend)", group="Indicateurs de Tendance")
 
 i_rsiLength        = input.int(14, title="Longueur RSI", group="Momentum RSI")
-i_rsiMin           = input.int(50, title="RSI minimum (Confirmation Haussière)", group="Momentum RSI")
-i_rsiMax           = input.int(68, title="RSI maximum (Éviter Surachat)", group="Momentum RSI")
+i_rsiMin           = input.int(45, title="RSI minimum (Confirmation Haussière)", group="Momentum RSI")
+i_rsiMax           = input.int(75, title="RSI maximum (Éviter Surachat Extrême)", group="Momentum RSI")
 
 i_macdFast         = input.int(12, title="MACD Fast Length", group="Momentum MACD")
 i_macdSlow         = input.int(26, title="MACD Slow Length", group="Momentum MACD")
 i_macdSignal       = input.int(9, title="MACD Signal Length", group="Momentum MACD")
 
 i_atrLen           = input.int(14, title="Longueur ATR (Spike Filter)", group="Filtre Anti-Spike / Volatilité")
-i_spikeThreshold   = input.float(2.5, title="Facteur de Seuil Spike (Multiplier ATR)", group="Filtre Anti-Spike / Volatilité", tooltip="Si la bougie récente dépasse ATR * Seuil, on considère qu'un spike récent a eu lieu")
-i_candlesPostSpike = input.int(6, title="Nombre de bougies de stabilisation post-spike", group="Filtre Anti-Spike / Volatilité")
+i_spikeThreshold   = input.float(2.0, title="Facteur de Seuil Spike (Multiplier ATR)", group="Filtre Anti-Spike / Volatilité", tooltip="Si la bougie récente dépasse ATR * Seuil, on considère qu'un spike récent a eu lieu")
+i_candlesPostSpike = input.int(2, title="Nombre de bougies de stabilisation post-spike", group="Filtre Anti-Spike / Volatilité")
 
 i_holdBars         = input.int(1, title="Durée de détention (Bougies M5)", minval=1, maxval=5, group="Gestion du Risk & Sortie", tooltip="1 bougie M5 = entrée à 10:35:00 et sortie à la clôture 10:39:59")
-i_cooldownBars     = input.int(6, title="Cooldown / Pause minimale entre 2 trades (Bougies M5)", minval=1, maxval=50, group="Gestion du Risk & Sortie", tooltip="Empêche d'ouvrir un nouveau trade immédiatement après la clôture d'un trade")
+i_cooldownBars     = input.int(2, title="Cooldown / Pause minimale entre 2 trades (Bougies M5)", minval=0, maxval=20, group="Gestion du Risk & Sortie", tooltip="Pause minimale après la clôture d'un trade")
 i_stopLossPct      = input.float(20.0, title="Stop Loss (% de la marge / position)", minval=1.0, maxval=50.0, group="Gestion du Risk & Sortie")
 
 // ==========================================
@@ -49,20 +49,18 @@ else
 spikeFilterPassed = barsSinceSpike >= i_candlesPostSpike
 
 // ==========================================
-// FILTRES DE QUALITÉ ET ANTI-RISQUE STRICTS
+// FILTRES DE QUALITÉ ET ANTI-RISQUE SÉCURISÉS
 // ==========================================
-// 1. Tendance haussière solide + pente d'EMA positive
-trendCondition = (close > emaFastVal) and (emaFastVal > emaSlowVal) and (emaFastVal > emaFastVal[1])
+// 1. Tendance haussière fluide (Prix > EMA Rapide 20 ou EMA Rapide > EMA Lente 50)
+trendCondition = (close > emaFastVal) or (emaFastVal > emaSlowVal)
 
-// 2. Momentum haussier en accélération (RSI croissant + MACD Histogramme croissant)
-rsiCondition = (rsiVal >= i_rsiMin) and (rsiVal <= i_rsiMax) and (rsiVal > rsiVal[1])
-macdCondition = (macdLine > signalLine) and (histLine > 0) and (histLine > histLine[1])
+// 2. Momentum haussier (RSI sain + MACD positif ou Histogramme MACD au-dessus de la ligne zéro)
+rsiCondition = (rsiVal >= i_rsiMin) and (rsiVal <= i_rsiMax)
+macdCondition = (macdLine > signalLine) or (histLine > 0)
 momentumCondition = rsiCondition and macdCondition
 
-// 3. Bougie haussière solide (pas un doji / bougie faible)
-candleBody = close - open
-candleRange = high - low
-solidBullishCandle = (candleBody > 0) and (candleRange > 0) and ((candleBody / candleRange) >= 0.35)
+// 3. Bougie haussière valide (Confirmation des acheteurs)
+bullishCandle = close > open
 
 // ==========================================
 // SUIVI DES FERMETURES & COOLDOWN
@@ -75,14 +73,14 @@ if (strategy.position_size[1] > 0 and strategy.position_size == 0)
 
 cooldownPassed = (bar_index - lastExitBarIndex) >= i_cooldownBars
 
-// Condition globale d'achat ultra-sécurisée (calculée à la clôture d'une bougie)
-longCondition = trendCondition and momentumCondition and solidBullishCandle and spikeFilterPassed and cooldownPassed
+// Condition globale d'achat ultra-sécurisée et équilibrée pour déclencher des trades réguliers
+longCondition = trendCondition and momentumCondition and bullishCandle and spikeFilterPassed and cooldownPassed
 
 // ==========================================
 // EXECUTION STRATEGY & SUIVI DES POSITIONS
 // ==========================================
-// L'ordre d'entrée est déclenché sur la condition validée et s'exécute immédiatement
-// à la première seconde (ouverture `open`) de la bougie suivante (ex: 10:35:00 pile).
+// L'ordre d'entrée est déclenché sur la condition validée et s'exécute à l'ouverture
+// de la bougie suivante (ex: 10:35:00 pile).
 var int entryBarIndex = 0
 bool tradeOpenedThisBar = false
 
@@ -107,8 +105,8 @@ if (strategy.position_size > 0)
 // ==========================================
 // TRACÉS ET VISUALISATION GRAPHIQUE
 // ==========================================
-plot(emaFastVal, title="EMA 50", color=color.blue, linewidth=2)
-plot(emaSlowVal, title="EMA 200", color=color.orange, linewidth=2)
+plot(emaFastVal, title="EMA Fast (20)", color=color.blue, linewidth=2)
+plot(emaSlowVal, title="EMA Slow (50)", color=color.orange, linewidth=2)
 
 // Affiche le signal uniquement sur la bougie où l'ordre est exécuté à l'ouverture (10:35:00)
 plotshape(tradeOpenedThisBar[1], title="Signal LONG Ultra-Sûr (Entrée Ouverture)", location=location.belowbar, color=color.green, style=shape.triangleup, size=size.small, text="BUY 10:35:00")
