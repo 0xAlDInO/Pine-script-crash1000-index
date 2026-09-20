@@ -4,29 +4,34 @@ Stratégie Pine Script v5 d'estimation de gains et de trading haute probabilité
 
 ## 📌 Présentation
 Cette stratégie a été spécialement conçue pour trader en position longue (BUY) sur l'indice synthétique Crash 1000 (Deriv / TradingView).
-Afin d'éviter les chutes brutales (*spikes*) caractéristiques de cet indice tout en profitant de la hausse lente continue, l'algorithme combine plusieurs indicateurs clés et filtres stricts.
+Afin d'éviter les chutes brutales (*spikes*) caractéristiques de cet indice tout en profitant de la hausse lente continue, l'algorithme combine plusieurs indicateurs clés, des filtres de pente et de forme de bougie, ainsi qu'un système strict anti-trades simultanés/en chaîne.
 
 ### 🎯 Objectifs de la stratégie
-- **Ciblage de bougies haussières sûres en M5** : Prise de position après confirmation d'une dynamique haussière forte pour assurer 1 à 2 bougies haussières successives.
+- **Positions isolées & sélection ultra-stricte** : `pyramiding=0` et temps de pause (*cooldown*) obligatoire entre chaque trade pour éliminer les prises de position consécutives ou simultanées.
+- **Filtrage des entrées risquées** : Exigence d'une pente haussière nette de l'EMA, d'un accroissement de l'histogramme MACD et d'un corps de bougie haussier solide (pas de doji ni de faible hésitation).
 - **Backtest complet dans le Testeur de Stratégies TradingView** : Visualisation automatique du taux de réussite (Win Rate), du gain net, du profit factor et du drawdown.
 - **Gestion du risque sur-mesure** :
-  - **Take Profit temporel** : Fermeture automatique de la position 5 minutes (ou 1 à 2 bougies M5) après l'entrée.
+  - **Take Profit temporel** : Fermeture automatique de la position 5 minutes (1 bougie M5) après l'entrée.
   - **Stop Loss de protection** : Fixé à 20% de marge/capital par trade pour limiter tout impact en cas de spike inattendu.
 
 ---
 
 ## 📊 Indicateurs & Logique de Prise de Décision
-La stratégie utilise une combinaison d'indicateurs très populaires pour filtrer le bruit du marché :
+La stratégie utilise une combinaison d'indicateurs très populaires et de filtres stricts :
 
 1. **Filtre de Tendance Majeure** :
-   - EMA 50 (Moyenne Mobile Exponentielle Rapide) > EMA 200 (Moyenne Mobile Exponentielle Lente)
-   - Prix de clôture au-dessus de l'EMA 50
-2. **Filtre de Momentum** :
-   - **RSI (14)** : Compris entre 45 et 70 (Zone de momentum haussier sain sans être en surachat extrême).
-   - **MACD (12, 26, 9)** : Ligne MACD supérieure à la ligne Signal et histogramme positif.
-3. **Filtre Anti-Spike (Volatilité ATR)** :
-   - Détection automatique des bougies de spike récentes grâce à l'ATR (Average True Range).
-   - Pause obligatoire de $N$ bougies post-spike pour laisser le marché se stabiliser.
+   - EMA 50 > EMA 200
+   - Pente de l'EMA 50 strictement positive (`EMA 50 > EMA 50 précédente`)
+2. **Filtre de Momentum Accéléré** :
+   - **RSI (14)** : Compris entre 50 et 68 + RSI croissant.
+   - **MACD (12, 26, 9)** : Ligne MACD > Signal + Histogramme positif **et en hausse** par rapport à la bougie précédente.
+3. **Filtre de Corps de Bougie (Solide)** :
+   - Exige une bougie haussière franche (le corps représente au moins 35% du range total de la bougie) pour éviter d'entrer sur des bougies d'hésitation (Doji).
+4. **Filtre Anti-Spike & Stabilisation** :
+   - Détection automatique des bougies de spike grâce à l'ATR.
+   - Pause obligatoire de 6 bougies (30 min) après un spike avant toute nouvelle évaluation.
+5. **Cooldown Anti-Répétition** :
+   - Pause obligatoire (ex: 6 bougies M5 = 30 min) après la clôture d'un trade avant de pouvoir rouvrir une position.
 
 ---
 
@@ -44,8 +49,9 @@ La stratégie utilise une combinaison d'indicateurs très populaires pour filtre
 
 Dans les paramètres du script (icône d'engrenage sur le graphique) :
 - **Indicateurs de Tendance** : Périodes des EMA Fast/Slow (défaut: 50/200).
-- **Momentum RSI & MACD** : Seuils de validation du momentum.
-- **Filtre Anti-Spike** : Multiplicateur ATR et nombre de bougies de temporisation après un spike.
-- **Gestion du Risk** :
+- **Momentum RSI & MACD** : Seuils et filtres d'accélération.
+- **Filtre Anti-Spike** : Multiplicateur ATR et nombre de bougies de temporisation après un spike (défaut: 6 bougies).
+- **Gestion du Risk & Pause** :
   - `Durée de détention (Bougies M5)` : Nombre de bougies en position (1 bougie = 5 min).
+  - `Cooldown / Pause minimale entre 2 trades` : Nombre de bougies d'attente minimale entre 2 trades (défaut: 6 bougies M5 = 30 min).
   - `Stop Loss (% de la marge)` : Seuil de sécurité fixe (par défaut 20%).
