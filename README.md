@@ -6,12 +6,16 @@ Stratégie Pine Script v5 d'estimation de gains et de trading haute probabilité
 Cette stratégie a été spécialement conçue pour trader en position longue (BUY) sur l'indice synthétique Crash 1000 (Deriv / TradingView).
 Afin d'éviter les chutes brutales (*spikes*) caractéristiques de cet indice tout en profitant de la hausse lente continue, l'algorithme combine plusieurs indicateurs clés, des filtres de pente et de forme de bougie, ainsi qu'un système strict anti-trades simultanés/en chaîne.
 
+### 🎯 Timing Précis d'Exécution (Achat & Vente)
+- **Ouverture de Position (00s)** : Dès validation de la condition à la clôture de la bougie précédente, l'ordre d'achat est exécuté **exactement à la première seconde de la bougie ciblée** (ex: **10:35:00 pile**).
+- **Fermeture de Position (59s)** : La position est automatiquement fermée à la fin de la bougie M5 ciblée (ex: **10:39:59 / 10:40:00**), couvrant précisément les 5 minutes complètes de la bougie haussière.
+
 ### 🎯 Objectifs de la stratégie
 - **Positions isolées & sélection ultra-stricte** : `pyramiding=0` et temps de pause (*cooldown*) obligatoire entre chaque trade pour éliminer les prises de position consécutives ou simultanées.
 - **Filtrage des entrées risquées** : Exigence d'une pente haussière nette de l'EMA, d'un accroissement de l'histogramme MACD et d'un corps de bougie haussier solide (pas de doji ni de faible hésitation).
 - **Backtest complet dans le Testeur de Stratégies TradingView** : Visualisation automatique du taux de réussite (Win Rate), du gain net, du profit factor et du drawdown.
 - **Gestion du risque sur-mesure** :
-  - **Take Profit temporel** : Fermeture automatique de la position 5 minutes (1 bougie M5) après l'entrée.
+  - **Take Profit temporel** : Fermeture automatique de la position après les 5 minutes de la bougie (10:35:00 -> 10:39:59).
   - **Stop Loss de protection** : Fixé à 20% de marge/capital par trade pour limiter tout impact en cas de spike inattendu.
 
 ---
@@ -21,7 +25,7 @@ La stratégie utilise une combinaison d'indicateurs très populaires et de filtr
 
 1. **Filtre de Tendance Majeure** :
    - EMA 50 > EMA 200
-   - Pente de l'EMA 50 strictement positive (`EMA 50 > EMA 50 précédente`)
+   - Pente de l'EMA 50 strictly positive (`EMA 50 > EMA 50 précédente`)
 2. **Filtre de Momentum Accéléré** :
    - **RSI (14)** : Compris entre 50 et 68 + RSI croissant.
    - **MACD (12, 26, 9)** : Ligne MACD > Signal + Histogramme positif **et en hausse** par rapport à la bougie précédente.
@@ -52,6 +56,6 @@ Dans les paramètres du script (icône d'engrenage sur le graphique) :
 - **Momentum RSI & MACD** : Seuils et filtres d'accélération.
 - **Filtre Anti-Spike** : Multiplicateur ATR et nombre de bougies de temporisation après un spike (défaut: 6 bougies).
 - **Gestion du Risk & Pause** :
-  - `Durée de détention (Bougies M5)` : Nombre de bougies en position (1 bougie = 5 min).
+  - `Durée de détention (Bougies M5)` : Nombre de bougies en position (1 bougie = 5 min, entrée à XX:X0:00 et sortie à XX:X4:59).
   - `Cooldown / Pause minimale entre 2 trades` : Nombre de bougies d'attente minimale entre 2 trades (défaut: 6 bougies M5 = 30 min).
   - `Stop Loss (% de la marge)` : Seuil de sécurité fixe (par défaut 20%).
